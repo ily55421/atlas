@@ -128,6 +128,28 @@
             <artifactId>hbase-shaded-client-fixed</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!-- HBase client - needed because hbase-shaded-client-fixed has provided scope -->
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-shaded-client</artifactId>
+            <version>${hbase.version}-hadoop3</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>servlet-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <dependency>
             <groupId>org.apache.atlas</groupId>
             <artifactId>janusgraph-rdbms</artifactId>

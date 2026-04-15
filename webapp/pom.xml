@@ -26,7 +26,7 @@
     </parent>
 
     <artifactId>atlas-webapp</artifactId>
-    <packaging>war</packaging>
+    <packaging>jar</packaging>
 
     <name>Apache Atlas Web Application</name>
     <description>Apache Atlas Web Application</description>
@@ -38,18 +38,80 @@
         <debug.jetty.daemon>true</debug.jetty.daemon>
         <logback.configurationFile>file:///${project.build.directory}/../../distro/src/conf/atlas-logback.xml</logback.configurationFile>
         <projectBaseDir>${project.basedir}/..</projectBaseDir>
+        <spring-boot.version>2.7.18</spring-boot.version>
+        <!-- Override SLF4J/Logback versions for Spring Boot 2.7.x compatibility -->
+        <slf4j.version>1.7.36</slf4j.version>
+        <logback.version>1.2.12</logback.version>
     </properties>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
+
+        <!-- Spring Boot Starters -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-tomcat</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jetty</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- JSP Support for Jetty -->
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>apache-jsp</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>apache-jstl</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
         </dependency>
 
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
         </dependency>
 
         <dependency>
@@ -211,6 +273,34 @@
         <dependency>
             <groupId>org.apache.atlas</groupId>
             <artifactId>atlas-server-api</artifactId>
+        </dependency>
+
+        <!-- HBase client for audit repository -->
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-shaded-client</artifactId>
+            <version>${hbase.version}-hadoop3</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>servlet-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- JanusGraph Lucene for embedded index -->
+        <dependency>
+            <groupId>org.janusgraph</groupId>
+            <artifactId>janusgraph-lucene</artifactId>
+            <version>${janusgraph.version}</version>
         </dependency>
 
         <dependency>
@@ -500,40 +590,22 @@
 
     <build>
         <plugins>
+            <!-- Spring Boot Maven Plugin -->
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-war-plugin</artifactId>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
                 <configuration>
-                    <archiveClasses>true</archiveClasses>
-                    <attachClasses>true</attachClasses>
-                    <overlays>
-                        <overlay>
-                            <groupId>org.apache.atlas</groupId>
-                            <artifactId>atlas-dashboard</artifactId>
-                        </overlay>
-                        <overlay>
-                            <groupId>org.apache.atlas</groupId>
-                            <artifactId>atlas-dashboardv2</artifactId>
-                        </overlay>
-                        <overlay>
-                            <!-- empty groupId/artifactId represents the current build -->
-                        </overlay>
-                    </overlays>
-
-                    <webResources>
-                        <resource>
-                            <directory>${project.build.directory}/api/v2/apidocs/ui</directory>
-                            <targetPath>apidocs</targetPath>
-                        </resource>
-                    </webResources>
-
-                    <archive>
-                        <manifest>
-                            <addClasspath>true</addClasspath>
-                        </manifest>
-                    </archive>
-                    <packagingExcludes>WEB-INF/lib/hbase-shaded-client-${hbase.version}-hadoop3.jar,WEB-INF/lib/dom4j-*.jar,WEB-INF/lib/jsp-api*.jar,${packages.to.exclude}</packagingExcludes>
+                    <mainClass>org.apache.atlas.AtlasApplication</mainClass>
+                    <layout>JAR</layout>
                 </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>
@@ -785,6 +857,55 @@
                 </executions>
             </plugin>
 
+            <!-- Copy webapp resources to classpath for Spring Boot JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-webapp-resources</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/META-INF/resources</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${basedir}/src/main/webapp</directory>
+                                    <excludes>
+                                        <exclude>WEB-INF/**</exclude>
+                                    </excludes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Unpack dashboard wars and copy static resources -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-dashboard</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>unpack-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <includeGroupIds>org.apache.atlas</includeGroupIds>
+                            <includeArtifactIds>atlas-dashboard,atlas-dashboardv2</includeArtifactIds>
+                            <includeTypes>war</includeTypes>
+                            <excludes>META-INF/**,WEB-INF/web.xml,WEB-INF/classes/**</excludes>
+                            <outputDirectory>${project.build.outputDirectory}/META-INF/resources</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>com.webcohesion.enunciate</groupId>
                 <artifactId>enunciate-maven-plugin</artifactId>
@@ -832,7 +953,7 @@
             </activation>
             <properties>
                 <atlas.testtools.scope>runtime</atlas.testtools.scope>
-                <packages.to.exclude>WEB-INF/lib/dom4j-*.jar</packages.to.exclude>
+                <packages.to.exclude>BOOT-INF/lib/dom4j-*.jar</packages.to.exclude>
             </properties>
         </profile>
 
@@ -842,7 +963,7 @@
                 <activeByDefault>false</activeByDefault>
             </activation>
             <properties>
-                <packages.to.exclude>WEB-INF/lib/je-*.jar,WEB-INF/lib/dom4j-*.jar</packages.to.exclude>
+                <packages.to.exclude>BOOT-INF/lib/je-*.jar,BOOT-INF/lib/dom4j-*.jar</packages.to.exclude>
             </properties>
         </profile>
 
@@ -852,7 +973,7 @@
                 <activeByDefault>false</activeByDefault>
             </activation>
             <properties>
-                <packages.to.exclude>WEB-INF/lib/dom4j-*.jar</packages.to.exclude>
+                <packages.to.exclude>BOOT-INF/lib/dom4j-*.jar</packages.to.exclude>
             </properties>
         </profile>
 
@@ -862,7 +983,7 @@
                 <activeByDefault>false</activeByDefault>
             </activation>
             <properties>
-                <packages.to.exclude>WEB-INF/lib/dom4j-*.jar</packages.to.exclude>
+                <packages.to.exclude>BOOT-INF/lib/dom4j-*.jar</packages.to.exclude>
             </properties>
         </profile>
 

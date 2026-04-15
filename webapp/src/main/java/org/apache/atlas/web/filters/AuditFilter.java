@@ -30,7 +30,6 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -40,7 +39,6 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
 import java.util.Date;
 import java.util.Set;
@@ -53,7 +51,7 @@ import static org.apache.atlas.AtlasConfiguration.REST_API_ENABLE_DELETE_TYPE_OV
  * This records audit information as part of the filter after processing the request
  * and also introduces a UUID into request and response for tracing requests in logs.
  */
-@Component
+//@Component
 public class AuditFilter implements Filter {
     private static final Logger LOG       = LoggerFactory.getLogger(AuditFilter.class);
     private static final Logger AUDIT_LOG = LoggerFactory.getLogger("AUDIT");
